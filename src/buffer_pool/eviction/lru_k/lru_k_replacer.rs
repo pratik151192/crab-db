@@ -1,4 +1,4 @@
-use std::sync::{Mutex, MutexGuard};
+use std::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use std::collections::HashMap;
 
 use crate::buffer_pool::{common::FrameId, eviction::replacer::Replacer};
@@ -10,7 +10,7 @@ use super::{common::Timestamp, lru_k_node::LRUKNode};
 pub struct LRUKReplacer {
     max_accesses: usize,
     replacer_size: usize,
-    state: Mutex<LRUKReplacerState>,
+    state: RwLock<LRUKReplacerState>,
 }
 
 #[derive(Debug)]
@@ -25,7 +25,7 @@ impl LRUKReplacer {
         LRUKReplacer {
             replacer_size,
             max_accesses: max_accesses,
-            state: Mutex::new(LRUKReplacerState {
+            state: RwLock::new(LRUKReplacerState {
                 current_size: 0,
                 current_timestamp: 1,
                 node_store: HashMap::new(),
@@ -37,7 +37,7 @@ impl LRUKReplacer {
 impl Replacer for LRUKReplacer {
    
     fn record_access(&mut self, frame_id: FrameId) -> CrabDbResult<RecordAccessResponse> {
-        let mut lruk_state: MutexGuard<LRUKReplacerState> = self.state.lock().unwrap();
+        let mut lruk_state: RwLockWriteGuard<LRUKReplacerState> = self.state.write().unwrap();
         let current_timestamp = lruk_state.current_timestamp;
         let node = lruk_state.node_store.get_mut(&frame_id);
         match node {
@@ -62,7 +62,7 @@ impl Replacer for LRUKReplacer {
         let mut evicted_frame: Option<FrameId> = None;
         let mut max_k_distance = 0;
         {
-            let mut lruk_state: MutexGuard<LRUKReplacerState> = self.state.lock().unwrap();
+            let mut lruk_state: RwLockWriteGuard<LRUKReplacerState> = self.state.write().unwrap();
             
             let current_timestamp = lruk_state.current_timestamp;
 
@@ -95,7 +95,7 @@ impl Replacer for LRUKReplacer {
         if let Some(frame) = evicted_frame {
             match self.remove(frame) {
                 Ok(_) => (),
-                Err(e) => return Err(CrabDBError::new("Failed to remove evicted frame from replacer {e}".into()))
+                Err(e) => return Err(CrabDBError::new(format!("Failed to remove evicted frame from replacer {e}").into()))
             }
         } 
 
@@ -104,7 +104,7 @@ impl Replacer for LRUKReplacer {
     }
 
     fn remove(&mut self, frame_id: FrameId) -> CrabDbResult<RemoveResponse> {
-        let mut lruk_state: MutexGuard<LRUKReplacerState> = self.state.lock().unwrap();
+        let mut lruk_state: RwLockWriteGuard<LRUKReplacerState> = self.state.write().unwrap();
         let node = lruk_state.node_store.get(&frame_id);
         match node {
             Some(node) => {
@@ -123,7 +123,7 @@ impl Replacer for LRUKReplacer {
     }
 
     fn set_evictable(&mut self, frame_id: FrameId, set_evictable: bool) -> CrabDbResult<SetEvictableResponse> {
-        let mut lruk_state: MutexGuard<LRUKReplacerState> = self.state.lock().unwrap();
+        let mut lruk_state: RwLockWriteGuard<LRUKReplacerState> = self.state.write().unwrap();
         let node = lruk_state.node_store.get_mut(&frame_id);
         if node.is_none() {
             return Err(CrabDBError::new("Frame doesn't exist to set_evictable".into()));
@@ -156,7 +156,7 @@ impl Replacer for LRUKReplacer {
     }
 
     fn size(&self) -> CrabDbResult<ReplacerSizeResponse> {
-        let lruk_state = self.state.lock().unwrap();
+        let lruk_state: RwLockReadGuard<LRUKReplacerState> = self.state.read().unwrap();
         Ok(ReplacerSizeResponse { num_evictable_frames: lruk_state.current_size })
     }
     

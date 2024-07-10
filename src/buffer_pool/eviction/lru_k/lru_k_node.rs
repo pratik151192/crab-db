@@ -6,7 +6,7 @@ use super::common::Timestamp;
 pub struct LRUKNode {
     max_accesses: usize,
     history: VecDeque<Timestamp>,
-    frame_id: FrameId,
+    _frame_id: FrameId,
     is_evictable: bool,
 }
 
@@ -15,7 +15,7 @@ impl LRUKNode {
         LRUKNode {
             max_accesses: max_accesses,
             history: VecDeque::new(),
-            frame_id,
+            _frame_id: frame_id,
             is_evictable: false,
         }
     }
