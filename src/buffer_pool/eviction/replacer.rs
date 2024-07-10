@@ -34,9 +34,14 @@ pub mod responses {
     }
     #[derive(Debug)]
     pub struct ReplacerSizeResponse {
-        pub(crate) num_evictable_frames: usize,
+        num_evictable_frames: usize,
     }
     impl ReplacerSizeResponse {
+        pub fn new(num_evictable_frames: usize) -> Self {
+            ReplacerSizeResponse {
+                num_evictable_frames,
+            }
+        }
         pub fn num_evictable_frames(&self) -> usize {
             self.num_evictable_frames
         }

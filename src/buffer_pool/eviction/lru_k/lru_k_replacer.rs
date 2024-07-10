@@ -157,7 +157,7 @@ impl Replacer for LRUKReplacer {
 
     fn size(&self) -> CrabDbResult<ReplacerSizeResponse> {
         let lruk_state: RwLockReadGuard<LRUKReplacerState> = self.state.read().unwrap();
-        Ok(ReplacerSizeResponse { num_evictable_frames: lruk_state.current_size })
+        Ok(ReplacerSizeResponse::new(lruk_state.current_size))
     }
     
 }
@@ -203,6 +203,26 @@ mod tests {
 
         assert!(replacer.set_evictable(1, true).is_ok());
         assert!(replacer.remove(1).is_ok());
+    }
+
+    #[test]
+    pub fn test_lru_record_remove_non_existent_frame() {
+        let mut replacer: LRUKReplacer = LRUKReplacer::new(7, 2);
+        
+        assert_eq!(
+            "Frame doesn't exist; invalid remove command",
+            replacer.remove(1).unwrap_err().message()
+        );
+    }
+
+    #[test]
+    pub fn test_lru_record_evict_non_existent_frame() {
+        let mut replacer: LRUKReplacer = LRUKReplacer::new(7, 2);
+        
+        assert_eq!(
+            None,
+            replacer.evict().unwrap().frame_id()
+        );
     }
 
     #[test]
@@ -284,7 +304,6 @@ mod tests {
         assert_eq!(None, replacer.evict().unwrap().frame_id());
         assert_eq!(0, replacer.size().unwrap().num_evictable_frames());
 
-        eprintln!("{:?}", replacer.remove(1));
         assert_eq!(
             "Frame doesn't exist; invalid remove command",
             replacer.remove(1).unwrap_err().message()
