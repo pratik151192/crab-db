@@ -62,11 +62,11 @@ impl Replacer for LRUKReplacer {
         let mut evicted_frame: Option<FrameId> = None;
         let mut max_k_distance = 0;
         {
-            let mut lruk_state: RwLockWriteGuard<LRUKReplacerState> = self.state.write().unwrap();
-            
+            let lruk_state: RwLockReadGuard<LRUKReplacerState> = self.state.read().unwrap();
+
             let current_timestamp = lruk_state.current_timestamp;
 
-            for (frame_id, node) in lruk_state.node_store.iter_mut() {
+            for (frame_id, node) in lruk_state.node_store.iter() {
                 if !node.is_evictable() {
                     continue
                 }
@@ -75,7 +75,6 @@ impl Replacer for LRUKReplacer {
                 if node_history_length == 0 {
                     panic!("How is the node there in the map if it's history length() is 0?, frame_id {}, Node details: {:?}", frame_id, node);
                 }
-                let node_earliest_timestamp = node.front_of_history().expect(format!("Can never not have a history when the node has been accessed and present {frame_id}").as_str());
 
                 let start_distance = if node_history_length >= self.max_accesses {
                     current_timestamp
@@ -83,6 +82,8 @@ impl Replacer for LRUKReplacer {
                     u64::MAX
                 };
 
+                let node_earliest_timestamp = node.front_of_history().expect(format!("Can never not have a history when the node has been accessed and present {frame_id}").as_str());
+                
                 let backwards_k_distance = start_distance - node_earliest_timestamp;
 
                 if backwards_k_distance > max_k_distance {
@@ -95,7 +96,7 @@ impl Replacer for LRUKReplacer {
         if let Some(frame) = evicted_frame {
             match self.remove(frame) {
                 Ok(_) => (),
-                Err(e) => return Err(CrabDBError::new(format!("Failed to remove evicted frame from replacer {e}").into()))
+                Err(e) => return Err(CrabDBError::new(format!("Failed to remove evicted frame from replacer: {e}").into()))
             }
         } 
 
@@ -106,6 +107,7 @@ impl Replacer for LRUKReplacer {
     fn remove(&mut self, frame_id: FrameId) -> CrabDbResult<RemoveResponse> {
         let mut lruk_state: RwLockWriteGuard<LRUKReplacerState> = self.state.write().unwrap();
         let node = lruk_state.node_store.get(&frame_id);
+
         match node {
             Some(node) => {
                 match node.is_evictable() {
