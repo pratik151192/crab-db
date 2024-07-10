@@ -16,7 +16,9 @@ pub mod responses {
     pub struct RecordAccessResponse {}
     #[derive(Debug)]
     pub struct RemoveResponse {}
+    #[derive(Debug)]
     pub struct SetEvictableResponse {}
+    #[derive(Debug)]
     pub struct EvictionResponse {
         frame_id: Option<FrameId>,
     }
@@ -30,6 +32,7 @@ pub mod responses {
             self.frame_id
         }
     }
+    #[derive(Debug)]
     pub struct ReplacerSizeResponse {
         pub(crate) num_evictable_frames: usize,
     }
